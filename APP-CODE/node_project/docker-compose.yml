@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: some-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: P@ssw0rd
+      MYSQL_DATABASE: sql_login
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      node_mysql_net:
+        ipv4_address: 172.20.0.2 
+    ports:
+      - "3306:3306"
+
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: phpmyadmin
+    restart: always
+    environment:
+      PMA_HOST: 172.20.0.2 
+      PMA_PORT: 3306
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql
+    networks:
+      - node_mysql_net
+
+  nodeapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nodejs-app
+    restart: always
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    depends_on:
+      - mysql
+    networks:
+      - node_mysql_net
+
+volumes:
+  mysql_data:
+
+networks:
+  node_mysql_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16  
