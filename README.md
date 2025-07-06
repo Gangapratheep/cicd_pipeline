@@ -189,4 +189,124 @@ kubectl run digpod --rm -it --image=infoblox/dig --restart=Never -- dig mysql-sv
 | 4    | Type `exit` to close the pod                 |
 
 Let me know if you'd like to **test DNS for another service** or troubleshoot if resolution fails.
+Great! Below is the **updated single YAML file** (`phpmyadmin-deploy.yaml`) that includes:
+
+1. `ConfigMap` for phpMyAdmin
+2. `phpMyAdmin` Pod with `seccompProfile` fix
+3. `phpMyAdmin` NodePort Service
+4. ✅ A **temporary test Pod (`dnsutils`)** to verify DNS resolution inside the cluster
+
+---
+
+### ✅ File: `phpmyadmin-deploy.yaml`
+
+```yaml
+# ---------------------------------------------------
+# 📘 Full Deployment: phpMyAdmin + DNS Test Pod
+# ---------------------------------------------------
+
+# 📌 1. ConfigMap for phpMyAdmin environment variables
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: phpadmin-config
+data:
+  PMA_HOST: "mysql-svc.default.svc.cluster.local"
+  PMA_PORT: "3306"
+
+---
+
+# 📌 2. phpMyAdmin Pod (Fixed: added seccompProfile)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: phpadmin-pod
+  labels:
+    run: phpadmin-pod
+spec:
+  containers:
+    - name: phpadmin-pod
+      image: phpmyadmin
+      envFrom:
+        - configMapRef:
+            name: phpadmin-config
+      securityContext:
+        seccompProfile:
+          type: Unconfined  # ✅ Fixes "Operation not permitted" error
+  dnsPolicy: ClusterFirst
+  restartPolicy: Always
+
+---
+
+# 📌 3. phpMyAdmin Service (NodePort to access from browser)
+apiVersion: v1
+kind: Service
+metadata:
+  name: phpmyadmin-svc
+  labels:
+    app: phpmyadmin-svc
+spec:
+  type: NodePort
+  selector:
+    run: phpadmin-pod
+  ports:
+    - name: phpmyadmin-port
+      protocol: TCP
+      port: 8099
+      targetPort: 80
+      nodePort: 30248
+
+---
+
+# 📌 4. (Optional) DNS test Pod to validate service FQDN resolution
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dnsutils
+spec:
+  containers:
+    - name: dnsutils
+      image: busybox:1.28
+      command:
+        - sh
+        - -c
+        - "sleep 3600"
+  restartPolicy: Never
+```
+
+---
+
+### ✅ After Applying
+
+```bash
+kubectl apply -f phpmyadmin-deploy.yaml
+```
+
+---
+
+### 🔍 Test DNS Resolution from `dnsutils` Pod
+
+```bash
+kubectl exec -it dnsutils -- nslookup mysql-svc.default.svc.cluster.local
+kubectl exec -it dnsutils -- nc -zv mysql-svc.default.svc.cluster.local 3306
+```
+
+---
+
+### 🌐 Access phpMyAdmin
+
+```
+http://<EC2_PUBLIC_IP>:30248
+```
+
+Use:
+
+* Username: `root`
+* Password: (from your MySQL secret or Dockerfile)
+* Server: `mysql-svc.default.svc.cluster.local`
+
+---
+
+Let me know if you want me to include the MySQL Pod/StatefulSet + volume config in the same file too.
+
 
