@@ -106,3 +106,87 @@ This command:
 
 I'm here to help!
 ------------------------------------
+
+Sure! Here's a **step-by-step guide** to test DNS resolution inside your Kubernetes cluster using a temporary pod:
+
+---
+
+### 🔍 **Goal**
+
+You want to check if the DNS entry (FQDN) of a service like `mysql-svc.default.svc.cluster.local` can be resolved **inside the cluster**.
+
+---
+
+## ✅ Step-by-Step DNS Resolution Test in Kubernetes
+
+---
+
+### **Step 1: Create a temporary pod with DNS tools**
+
+We'll use `busybox` or `dnsutils` image which includes `nslookup` or `dig`.
+
+Run this command:
+
+```bash
+kubectl run dnsutils --rm -it --image=busybox:1.28 --restart=Never -- sh
+```
+
+> ⏳ Wait a moment — this will start a pod named `dnsutils` and drop you into its shell (`sh`).
+
+---
+
+### **Step 2: Inside the pod, run DNS resolution**
+
+Now you're inside the pod shell. Run this command:
+
+```bash
+nslookup mysql-svc.default.svc.cluster.local
+```
+
+You should get an output like:
+
+```
+Server:    10.96.0.10
+Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
+
+Name:      mysql-svc.default.svc.cluster.local
+Address 1: 10.96.241.43
+```
+
+✅ This confirms that your service `mysql-svc` is **resolvable** via DNS inside the cluster.
+
+---
+
+### **Step 3: Exit the temporary pod**
+
+Just type:
+
+```bash
+exit
+```
+
+This will remove the temporary pod (because of `--rm` flag).
+
+---
+
+## 🧪 Optional: Use `dig` command instead of `nslookup`
+
+If you use an image with `dig` (e.g., `infoblox/dig`), you can test it like this:
+
+```bash
+kubectl run digpod --rm -it --image=infoblox/dig --restart=Never -- dig mysql-svc.default.svc.cluster.local
+```
+
+---
+
+### 🔁 Summary:
+
+| Step | Action                                       |
+| ---- | -------------------------------------------- |
+| 1    | Run a temporary pod with shell using busybox |
+| 2    | Run `nslookup <service-fqdn>` inside pod     |
+| 3    | Confirm output shows the Cluster IP          |
+| 4    | Type `exit` to close the pod                 |
+
+Let me know if you'd like to **test DNS for another service** or troubleshoot if resolution fails.
+
