@@ -15,12 +15,12 @@ spec:
         app: node-app
     spec:
       imagePullSecrets:
-      - name: registery-credenial            
+      - name: dockerhub-secret            
       containers:
-      - image: registry.gitlab.com/d6245/app-k8s/app-login:v1 
+      - image: gangapratheep/node-app:latest
         name: node-app
         envFrom:
         - configMapRef:
            name: app-config
         - secretRef:
-           name: app-secret        
+           name: app-secret
