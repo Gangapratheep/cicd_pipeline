@@ -308,5 +308,84 @@ Use:
 ---
 
 Let me know if you want me to include the MySQL Pod/StatefulSet + volume config in the same file too.
+------------------------------------Thanks for sharing the current configuration. The issue is now **clearly identified**:
+
+---
+
+## ❌ Root Cause
+
+Your **`mysql-svc.yaml` has a label selector mismatch.**
+
+```yaml
+selector:
+  app: mysql-sts   ❌ (Incorrect)
+```
+
+But in your **`db-pod.yaml`**, the pod is labeled as:
+
+```yaml
+metadata:
+  labels:
+    run: mysql-pod ✅
+```
+
+So the `mysql-svc` cannot find the MySQL pod, and **phpMyAdmin cannot connect**, hence the `mysqli::real_connect(): Operation not permitted` error.
+
+---
+
+## ✅ Solution
+
+### 🔧 Update `mysql-svc.yaml` with the correct selector:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-svc
+spec:
+  ports:
+  - port: 3306
+    targetPort: 3306
+  selector:
+    run: mysql-pod     # ✅ This must match db-pod.yaml
+  type: ClusterIP
+```
+
+---
+
+## 🔁 Apply the fix
+
+```bash
+kubectl delete -f mysql-svc.yaml
+kubectl apply -f mysql-svc.yaml
+```
+
+Then verify:
+
+```bash
+kubectl get endpoints mysql-svc
+```
+
+You should see a valid pod IP listed (e.g., `100.67.x.x:3306`). If it's `<none>`, the selector is still wrong.
+
+---
+
+## ✅ Next Step
+
+After the fix, visit your phpMyAdmin:
+
+```bash
+http://<EC2_PUBLIC_IP>:30248
+```
+
+Login:
+
+* Username: `root`
+* Password: `Passw0rd`
+
+If you still face issues, I can verify your remaining YAML files again.
+
+Let me know if you'd like me to regenerate the final fixed `mysql-svc.yaml`.
+
 
 
