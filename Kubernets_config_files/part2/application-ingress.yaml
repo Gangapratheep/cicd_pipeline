@@ -7,7 +7,7 @@ metadata:
   name: apps-ingress
 spec:
   rules:
-  - host: loginapp.duckdns.org    
+  - host: loginapp.gangadev.site  
     http:
       paths:
       - backend:
@@ -17,7 +17,7 @@ spec:
               number: 5000
         path: /
         pathType: Prefix
-  - host: dbmanage.duckdns.org
+  - host: dbmanage.gangadev.site
     http:
       paths:
       - backend:
