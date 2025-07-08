@@ -386,6 +386,159 @@ Login:
 If you still face issues, I can verify your remaining YAML files again.
 
 Let me know if you'd like me to regenerate the final fixed `mysql-svc.yaml`.
+--------------------------------------------------------------------------------
+Great! Let's secure your application with **TLS (HTTPS)** using **Let's Encrypt** and **cert-manager** in your Kubernetes cluster. Here's a **step-by-step guide** to set it up properly on your `apps-ingress`.
+
+---
+
+## 🔐 TLS with Let's Encrypt on Kubernetes (via cert-manager)
+
+---
+
+### ✅ Prerequisites
+
+1. ✅ You’re using **Ingress NGINX** (`ingress-nginx-controller`) with a **public LoadBalancer** (confirmed).
+2. ✅ Your domains `loginapp.gangadev.site` and `dbmanage.gangadev.site` already point to the ELB (confirmed).
+3. ⚠️ Port **80 and 443** must be open in your AWS security group for the LoadBalancer.
+
+---
+
+### 📦 Step 1: Install `cert-manager`
+
+Apply the cert-manager manifest:
+
+```bash
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
+```
+
+Wait 1–2 minutes and verify:
+
+```bash
+kubectl get pods --namespace cert-manager
+```
+
+You should see:
+
+```
+cert-manager-xxxxx          Running
+cert-manager-cainjector     Running
+cert-manager-webhook        Running
+```
+
+---
+
+### 🆔 Step 2: Create Let's Encrypt Issuer (or ClusterIssuer)
+
+We'll use a **ClusterIssuer** for simplicity:
+
+```yaml
+# cluster-issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    email: your-email@example.com
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+```
+
+Replace `your-email@example.com` with your actual email. Then apply:
+
+```bash
+kubectl apply -f cluster-issuer.yaml
+```
+
+---
+
+### 🔐 Step 3: Modify Your Ingress to Use TLS
+
+Update your `application-ingress.yaml`:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: apps-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - loginapp.gangadev.site
+        - dbmanage.gangadev.site
+      secretName: gangadev-tls
+  rules:
+    - host: loginapp.gangadev.site
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: app-svc
+                port:
+                  number: 5000
+    - host: dbmanage.gangadev.site
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: phpmyadmin-svc
+                port:
+                  number: 8099
+```
+
+Then apply it:
+
+```bash
+kubectl apply -f application-ingress.yaml
+```
+
+---
+
+### 🔍 Step 4: Verify Certificate Request
+
+Check for `Certificate` and `Order` resources:
+
+```bash
+kubectl get certificate
+kubectl describe certificate gangadev-tls
+```
+
+You should see it being issued.
+
+---
+
+### ✅ Step 5: Access Over HTTPS
+
+After a minute or two, visit:
+
+* [https://loginapp.gangadev.site](https://loginapp.gangadev.site)
+* [https://dbmanage.gangadev.site](https://dbmanage.gangadev.site)
+
+✅ You should get a **valid green padlock** with no warning.
+
+---
+
+## 💬 Let Me Know
+
+* ✅ Once you finish applying the steps
+* 🚨 If you'd prefer a `staging` (test) issuer first
+* 👇 If you want me to generate these YAMLs for you automatically
+
+Would you like me to generate and give you the exact YAML files ready to apply?
+
 
 
 
